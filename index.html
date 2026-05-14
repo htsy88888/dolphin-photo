@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>影楼样片浏览系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3B82F6',
+            secondary: '#6366F1',
+            accent: '#F59E0B',
+            dark: '#1E293B',
+            light: '#F8FAFC'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto { content-visibility: auto; }
+      .photo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+      }
+      .hover-scale { transition: transform 0.3s ease; }
+      .hover-scale:hover { transform: scale(1.03); }
+      .modal-backdrop {
+        background-color: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(4px);
+      }
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen">
+
+<!-- 移动端顶部栏 -->
+<header class="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 shadow-sm">
+  <div class="px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <i class="fa fa-camera-retro text-primary text-xl"></i>
+      <span class="font-bold text-lg">影楼样片系统</span>
+    </div>
+    <button id="theme-toggle-mobile" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+      <i class="fa fa-moon-o dark:hidden"></i>
+      <i class="fa fa-sun-o hidden dark:block text-yellow-400"></i>
+    </button>
+  </div>
+</header>
+
+<!-- 移动端底部导航 -->
+<nav class="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 shadow-lg border-t border-gray-200 dark:border-gray-700">
+  <div class="flex items-center justify-around py-2">
+    <a href="#" class="mobile-nav flex flex-col items-center px-2 py-1 text-gray-500 dark:text-gray-400 active text-primary" data-view="gallery">
+      <i class="fa fa-th-large text-lg"></i>
+      <span class="text-xs mt-1">相册</span>
+    </a>
+    <a href="#" class="mobile-nav flex flex-col items-center px-2 py-1 text-gray-500 dark:text-gray-400" data-view="favorites">
+      <i class="fa fa-heart text-lg"></i>
+      <span class="text-xs mt-1">收藏</span>
+    </a>
+    <a href="#" class="mobile-nav flex flex-col items-center px-2 py-1 text-gray-500 dark:text-gray-400" data-view="compare">
+      <i class="fa fa-balance-scale text-lg"></i>
+      <span class="text-xs mt-1">对比</span>
+    </a>
+    <a href="#" class="mobile-nav flex flex-col items-center px-2 py-1 text-gray-500 dark:text-gray-400 relative" data-view="selected">
+      <i class="fa fa-check-square-o text-lg"></i>
+      <span class="text-xs mt-1">已选</span>
+      <span id="sel-badge" class="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">0</span>
+    </a>
+    <button class="mobile-nav flex flex-col items-center px-2 py-1 text-gray-500 dark:text-gray-400" id="go-admin">
+      <i class="fa fa-cog text-lg"></i>
+      <span class="text-xs mt-1">管理</span>
+    </button>
+  </div>
+</nav>
+
+<main class="pt-16 pb-20 px-3 max-w-6xl mx-auto">
+  <!-- 相册 -->
+  <section id="view-gallery" class="block">
+    <div class="mb-4">
+      <h2 class="text-xl font-bold mb-3">样片分类</h2>
+      <div class="flex flex-wrap gap-2">
+        <button class="cat-btn px-3 py-1.5 rounded-full bg-primary text-white text-sm" data-cat="all">全部</button>
+        <button class="cat-btn px-3 py-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-sm" data-cat="wedding">婚纱摄影</button>
+        <button class="cat-btn px-3 py-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-sm" data-cat="portrait">个人写真</button>
+        <button class="cat-btn px-3 py-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-sm" data-cat="family">家庭合影</button>
+        <button class="cat-btn px-3 py-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-sm" data-cat="children">儿童摄影</button>
+        <button class="cat-btn px-3 py-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-sm" data-cat="birthday">生日照</button>
+        <button class="cat-btn px-3 py-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-sm" data-cat="graduation">毕业照</button>
+        <button class="cat-btn px-3 py-1.5 rounded-full bg-gray-200 dark:bg-gray-700 text-sm" data-cat="meeting">会议照</button>
+      </div>
+    </div>
+
+    <div class="mb-3" id="child-sub-wrap" style="display:none;">
+      <div class="flex flex-wrap gap-2 mt-2">
+        <button class="subcat-btn px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs" data-sub="all">全部儿童</button>
+        <button class="subcat-btn px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs" data-sub="month">满月照</button>
+        <button class="subcat-btn px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs" data-sub="hundred">百天照</button>
+        <button class="subcat-btn px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs" data-sub="year">周岁照</button>
+        <button class="subcat-btn px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs" data-sub="toddler">2-5岁</button>
+      </div>
+    </div>
+
+    <div id="gallery" class="photo-grid"></div>
+  </section>
+
+  <!-- 收藏 -->
+  <section id="view-favorites" class="hidden">
+    <h2 class="text-xl font-bold mb-3">我的收藏</h2>
+    <div id="fav-list" class="photo-grid"></div>
+  </section>
+
+  <!-- 对比 -->
+  <section id="view-compare" class="hidden">
+    <h2 class="text-xl font-bold mb-3">样片对比</h2>
+    <div id="compare-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+  </section>
+
+  <!-- 已选 -->
+  <section id="view-selected" class="hidden">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-xl font-bold">我的选择</h2>
+      <button id="clear-all" class="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full">清空</button>
+    </div>
+    <div id="sel-list" class="photo-grid"></div>
+  </section>
+
+  <!-- 后台管理 -->
+  <section id="view-admin" class="hidden">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-xl font-bold">后台管理</h2>
+      <button id="back-gallery" class="text-sm px-3 py-1 bg-primary text-white rounded-full">返回相册</button>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3 mb-4">
+      <h3 class="font-semibold mb-2">上传样片</h3>
+      <input type="text" id="up-title" placeholder="标题" class="w-full mb-2 px-2 py-1.5 border rounded dark:bg-gray-700 dark:border-gray-600">
+      <select id="up-cate" class="w-full mb-2 px-2 py-1.5 border rounded dark:bg-gray-700 dark:border-gray-600">
+        <option value="">选择分类</option>
+        <option value="wedding">婚纱摄影</option>
+        <option value="portrait">个人写真</option>
+        <option value="family">家庭合影</option>
+        <option value="children">儿童摄影</option>
+        <option value="birthday">生日照</option>
+        <option value="graduation">毕业照</option>
+        <option value="meeting">会议照</option>
+      </select>
+      <select id="up-subcate" class="w-full mb-2 px-2 py-1.5 border rounded dark:bg-gray-700 dark:border-gray-600">
+        <option value="all">儿童子分类</option>
+        <option value="month">满月照</option>
+        <option value="hundred">百天照</option>
+        <option value="year">周岁照</option>
+        <option value="toddler">2-5岁</option>
+      </select>
+      <input type="file" id="up-file" accept="image/*" class="w-full mb-2">
+      <button id="do-upload" class="w-full py-2 bg-primary text-white rounded">上传</button>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3">
+      <h3 class="font-semibold mb-2">样片管理</h3>
+      <div id="admin-list" class="space-y-2"></div>
+    </div>
+  </section>
+</main>
+
+<!-- 预览弹窗 -->
+<div id="preview-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+  <div class="absolute inset-0 modal-backdrop" id="close-preview"></div>
+  <div class="relative w-full max-w-lg max-h-[90vh] overflow-hidden rounded-lg animate-fade-in">
+    <button class="absolute top-3 right-3 z-10 bg-black/50 text-white p-2 rounded-full" id="close-preview-btn">
+      <i class="fa fa-times"></i>
+    </button>
+    <img id="preview-img" class="w-full h-auto object-contain max-h-[80vh]">
+    <div class="absolute bottom-0 left-0 right-0 p-3 bg-black/60 text-white">
+      <h3 id="preview-title" class="font-semibold"></h3>
+      <div class="flex justify-between mt-1">
+        <span id="preview-cate" class="text-xs bg-primary px-2 py-0.5 rounded-full"></span>
+        <div class="flex gap-3">
+          <button class="p-1.5 rounded-full bg-black/50" id="prev-btn"><i class="fa fa-chevron-left"></i></button>
+          <button class="p-1.5 rounded-full bg-black/50" id="next-btn"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE_KEY = 'photo-studio-data';
+const DEF_PHOTOS = [
+{id:'g1',title:'大学毕业合影',category:'graduation',subcategory:'all',url:'https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/8c9d8b0740634ebfb8fd416d0209c74a~tplv-a9rns2rl98-image.image',rating:4.8},
+{id:'g2',title:'研究生毕业合影',category:'graduation',subcategory:'all',url:'https://p26-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/e85b653a851e4751a4e30f56c893d1e8~tplv-a9rns2rl98-image.image',rating:4.9},
+{id:'g3',title:'高中毕业合影',category:'graduation',subcategory:'all',url:'https://p26-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/870d6b2e1ec940d996c75933e9a17cd4~tplv-a9rns2rl98-image.image',rating:4.7},
+{id:'m1',title:'商务会议现场',category:'meeting',subcategory:'all',url:'https://p6-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/c4827450d82445f6abeced78f5d46c07~tplv-a9rns2rl98-image.image',rating:4.6},
+{id:'m2',title:'大型会议合影',category:'meeting',subcategory:'all',url:'https://p26-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/36371eff520740069f6ca864306a0d15~tplv-a9rns2rl98-image.image',rating:4.8},
+{id:'m3',title:'商务论坛演讲',category:'meeting',subcategory:'all',url:'https://p6-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/94f66aa910064bfcb785914aeccc144c~tplv-a9rns2rl98-image.image',rating:4.7},
+{id:'c1',title:'宝宝满月照',category:'children',subcategory:'month',url:'https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/f7c92a6767ea45a3b187b2d785112734~tplv-a9rns2rl98-image.image',rating:4.9},
+{id:'c2',title:'宝宝百天照',category:'children',subcategory:'hundred',url:'https://p11-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/2e98c243a2394d12a2d045e95f1d163c~tplv-a9rns2rl98-image.image',rating:4.8},
+{id:'c3',title:'宝宝周岁照',category:'children',subcategory:'year',url:'https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/c0b9b7d1aadb4c2ebb52dfa29645bdbe~tplv-a9rns2rl98-image.image',rating:4.9},
+{id:'c4',title:'2-5岁儿童写真',category:'children',subcategory:'toddler',url:'https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/7a55a1165afc4b5a95294d340cc4060f~tplv-a9rns2rl98-image.image',rating:4.7},
+{id:'b1',title:'生日照',category:'birthday',subcategory:'all',url:'https://p26-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/e9d709171aaf4e7594382e1ec23ac850~tplv-a9rns2rl98-image.image',rating:4.8},
+{id:'w1',title:'优雅婚纱摄影',category:'wedding',subcategory:'all',url:'https://p11-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/5181df117385416eab074ceb14bfb18e~tplv-a9rns2rl98-image.image',rating:4.8},
+{id:'w2',title:'浪漫户外婚礼',category:'wedding',subcategory:'all',url:'https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/411049adc5664e5fa19848a0c66275bf~tplv-a9rns2rl98-image.image',rating:4.9},
+{id:'p1',title:'时尚写真',category:'portrait',subcategory:'all',url:'https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/af680908a6b94ebc83007e5b112efa17~tplv-a9rns2rl98-image.image',rating:4.7},
+{id:'f1',title:'温馨家庭',category:'family',subcategory:'all',url:'https://p6-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/84052f6b6c1c4ca0a55c72bc94a84191~tplv-a9rns2rl98-image.image',rating:4.8}
+];
+
+let photos = [];
+let user = {sel:[],fav:[],cmp:[],rat:{}};
+let currCat = 'all';
+let currSub = 'all';
+let currPreview = -1;
+let currList = [];
+
+function loadData(){
+  let d = localStorage.getItem(STORE_KEY);
+  if(d){try{let j=JSON.parse(d);photos=j.photos||[];user=j.user||{};}catch(e){}}
+  if(!photos||photos.length<1)photos=[...DEF_PHOTOS];
+}
+function saveData(){
+  localStorage.setItem(STORE_KEY,JSON.stringify({photos,user}));
+  refreshBadge();
+}
+function cateName(c){
+  let map={wedding:'婚纱摄影',portrait:'个人写真',family:'家庭合影',children:'儿童摄影',birthday:'生日照',graduation:'毕业照',meeting:'会议照'};
+  return map[c]||c;
+}
+function filterList(){
+  let list=photos;
+  if(currCat!=='all')list=list.filter(p=>p.category===currCat);
+  if(currCat==='children'&&currSub!=='all')list=list.filter(p=>p.subcategory===currSub);
+  currList=[...list];
+  renderGallery();
+}
+function renderGallery(){
+  let g=document.getElementById('gallery');g.innerHTML='';
+  currList.forEach((p,i)=>{
+    let card=document.createElement('div');
+    card.className='bg-white dark:bg-gray-800 rounded shadow hover-scale overflow-hidden';
+    let sel=user.sel.includes(p.id)?'text-primary':'text-gray-400';
+    let fav=user.fav.includes(p.id)?'text-red-500':'text-gray-400';
+    card.innerHTML=`
+    <div class="relative h-48 overflow-hidden" onclick="openPreview(${i})">
+      <img src="${p.url}" class="w-full h-full object-cover">
+    </div>
+    <div class="p-2 flex justify-between items-center">
+      <div class="text-sm truncate flex-1">${p.title}</div>
+      <div class="flex gap-2">
+        <button onclick="toggleSel('${p.id}',event)" class="p-1 ${sel}"><i class="fa fa-check-square-o"></i></button>
+        <button onclick="toggleFav('${p.id}',event)" class="p-1 ${fav}"><i class="fa fa-heart-o"></i></button>
+      </div>
+    </div>`;
+    g.appendChild(card);
+  });
+}
+function refreshViews(){
+  renderFav();renderCmp();renderSel();renderAdmin();
+}
+function renderFav(){
+  let f=document.getElementById('fav-list');f.innerHTML='';
+  let arr=photos.filter(p=>user.fav.includes(p.id));
+  if(arr.length===0){f.innerHTML='<div class="col-span-full text-center py-6 text-gray-500">暂无收藏</div>';return;}
+  arr.forEach(p=>{
+    let c=document.createElement('div');
+    c.className='bg-white dark:bg-gray-800 rounded shadow hover-scale overflow-hidden';
+    c.innerHTML=`
+    <div class="relative h-40 overflow-hidden">
+      <img src="${p.url}" class="w-full h-full object-cover">
+      <button onclick="toggleFav('${p.id}',event)" class="absolute top-2 right-2 bg-black/40 text-white p-1 rounded-full"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="p-2 text-sm">${p.title}</div>`;
+    f.appendChild(c);
+  });
+}
+function renderCmp(){
+  let cmp=document.getElementById('compare-list');cmp.innerHTML='';
+  let arr=photos.filter(p=>user.cmp.includes(p.id));
+  if(arr.length===0){cmp.innerHTML='<div class="col-span-full text-center py-6 text-gray-500">暂无对比</div>';return;}
+  arr.forEach(p=>{
+    let d=document.createElement('div');
+    d.className='bg-white dark:bg-gray-800 rounded shadow overflow-hidden';
+    d.innerHTML=`<img src="${p.url}" class="w-full h-32 object-cover"><div class="p-2 text-xs">${p.title}</div>`;
+    cmp.appendChild(d);
+  });
+}
+function renderSel(){
+  let s=document.getElementById('sel-list');s.innerHTML='';
+  let arr=photos.filter(p=>user.sel.includes(p.id));
+  if(arr.length===0){s.innerHTML='<div class="col-span-full text-center py-6 text-gray-500">暂无选择</div>';return;}
+  arr.forEach(p=>{
+    let d=document.createElement('div');
+    d.className='bg-white dark:bg-gray-800 rounded shadow hover-scale overflow-hidden';
+    d.innerHTML=`<img src="${p.url}" class="w-full h-36 object-cover"><div class="p-2 flex justify-between items-center"><div class="text-sm truncate">${p.title}</div><button onclick="toggleSel('${p.id}',event)" class="text-xs px-2 py-1 bg-gray-200 rounded-full">取消</button></div>`;
+    s.appendChild(d);
+  });
+}
+function toggleSel(id,e){if(e)e.stopPropagation();let i=user.sel.indexOf(id);i>-1?user.sel.splice(i,1):user.sel.push(id);saveData();refreshViews();filterList();}
+function toggleFav(id,e){if(e)e.stopPropagation();let i=user.fav.indexOf(id);i>-1?user.fav.splice(i,1):user.fav.push(id);saveData();refreshViews();filterList();}
+function toggleCmp(id,e){if(e)e.stopPropagation();let i=user.cmp.indexOf(id);i>-1?user.cmp.splice(i,1):user.cmp.push(id);saveData();refreshViews();}
+function refreshBadge(){
+  let b=document.getElementById('sel-badge');
+  b.textContent=user.sel.length||0;
+}
+function openPreview(i){
+  currPreview=i;
+  let p=currList[i];
+  document.getElementById('preview-img').src=p.url;
+  document.getElementById('preview-title').textContent=p.title;
+  document.getElementById('preview-cate').textContent=cateName(p.category);
+  document.getElementById('preview-modal').classList.remove('hidden');
+}
+function closePreview(){document.getElementById('preview-modal').classList.add('hidden');}
+function prevImg(){if(currPreview>0)openPreview(currPreview-1);}
+function nextImg(){if(currPreview<currList.length-1)openPreview(currPreview+1);}
+function switchView(v){
+  document.querySelectorAll('section').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(`view-${v}`).classList.remove('hidden');
+  document.querySelectorAll('.mobile-nav').forEach(n=>n.classList.remove('text-primary'));
+  document.querySelector(`.mobile-nav[data-view="${v}"]`)?.classList.add('text-primary');
+}
+function uploadPhoto(){
+  let t=document.getElementById('up-title').value.trim();
+  let c=document.getElementById('up-cate').value;
+  let s=document.getElementById('up-subcate').value;
+  let f=document.getElementById('up-file').files[0];
+  if(!t||!c||!f){alert('请填写完整信息');return;}
+  let reader=new FileReader();
+  reader.onload=e=>{
+    let newp={id:'up_'+Date.now(),title:t,category:c,subcategory:s,url:e.target.result,rating:0};
+    photos.unshift(newp);
+    saveData();
+    alert('上传成功');
+    document.getElementById('up-title').value='';
+    document.getElementById('up-file').value='';
+    renderAdmin();filterList();
+  };
+  reader.readAsDataURL(f);
+}
+function renderAdmin(){
+  let a=document.getElementById('admin-list');a.innerHTML='';
+  photos.forEach(p=>{
+    let d=document.createElement('div');
+    d.className='flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2';
+    d.innerHTML=`<img src="${p.url}" class="w-12 h-12 object-cover rounded"><div class="flex-1 text-sm truncate">${p.title}</div><button onclick="delPhoto('${p.id}')" class="text-xs px-2 py-1 bg-red-500 text-white rounded">删除</button>`;
+    a.appendChild(d);
+  });
+}
+function delPhoto(id){
+  if(!confirm('确定删除？'))return;
+  photos=photos.filter(p=>p.id!==id);
+  user.sel=user.sel.filter(i=>i!==id);
+  user.fav=user.fav.filter(i=>i!==id);
+  user.cmp=user.cmp.filter(i=>i!==id);
+  saveData();renderAdmin();filterList();refreshViews();
+}
+function init(){
+  loadData();
+  filterList();
+  refreshViews();
+  refreshBadge();
+  document.getElementById('theme-toggle-mobile').onclick=()=>document.documentElement.classList.toggle('dark');
+  document.querySelectorAll('.cat-btn').forEach(b=>{
+    b.onclick=()=>{
+      currCat=b.dataset.cat;
+      currSub='all';
+      document.getElementById('child-sub-wrap').style.display=currCat==='children'?'block':'none';
+      filterList();
+    };
+  });
+  document.querySelectorAll('.subcat-btn').forEach(b=>{
+    b.onclick=()=>{currSub=b.dataset.sub;filterList();};
+  });
+  document.querySelectorAll('.mobile-nav').forEach(n=>{
+    n.onclick=e=>{e.preventDefault();switchView(n.dataset.view);};
+  });
+  document.getElementById('go-admin').onclick=()=>switchView('admin');
+  document.getElementById('back-gallery').onclick=()=>switchView('gallery');
+  document.getElementById('do-upload').onclick=uploadPhoto;
+  document.getElementById('clear-all').onclick=()=>{user.sel=[];saveData();renderSel();};
+  document.getElementById('close-preview-btn').onclick=closePreview;
+  document.getElementById('close-preview').onclick=closePreview;
+  document.getElementById('prev-btn').onclick=prevImg;
+  document.getElementById('next-btn').onclick=nextImg;
+}
+window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
