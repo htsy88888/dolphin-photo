@@ -2,213 +2,310 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>海豚摄影 - 样片选片系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>海豚摄影 - 专业在线选片系统</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
   <script>
     tailwind.config = {
-      theme: { extend: { colors: { primary: '#3B82F6' } } }
+      theme: {
+        extend: {
+          colors: {
+            main: '#e54b4b',
+            dark: '#1a1a1a',
+          }
+        }
+      }
     }
   </script>
   <style type="text/tailwindcss">
     @layer utilities {
-      .photo-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-      .hover-scale { transition: transform 0.3s ease; }
-      .hover-scale:hover { transform: scale(1.03); }
+      .photo-card { @apply rounded-xl overflow-hidden bg-white shadow-sm; }
+      .cate-active { @apply bg-main text-white; }
+      .cate-normal { @apply bg-gray-100 text-gray-700; }
+      .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+      .img-hover { transition: transform 0.25s ease; }
+      .img-hover:active { transform: scale(0.97); }
     }
+    body { background:#f5f5f5; }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-800 min-h-screen">
-
-<!-- 管理员登录弹窗 -->
-<div id="admin-login" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80">
-  <div class="bg-white w-full max-w-sm p-6 rounded-lg mx-4">
-    <h3 class="text-lg font-bold mb-4 text-center">管理员登录</h3>
-    <input id="admin-user" placeholder="账号" class="w-full p-2 border rounded mb-2">
-    <input id="admin-pwd" type="password" placeholder="密码" class="w-full p-2 border rounded mb-3">
-    <button onclick="adminLogin()" class="w-full bg-primary text-white p-2 rounded">登录</button>
-    <button onclick="closeAdminLogin()" class="w-full mt-2 text-sm text-gray-500">关闭</button>
-  </div>
-</div>
+<body class="bg-gray-100">
 
 <!-- 顶部导航 -->
-<header class="fixed top-0 left-0 right-0 bg-white shadow z-40">
-  <div class="px-4 py-3 flex justify-between items-center">
-    <div class="font-bold text-lg">海豚摄影样片</div>
-    <button onclick="openAdminLogin()" class="text-xs px-3 py-1 bg-gray-100 rounded">管理员</button>
+<header class="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
+  <div class="flex items-center justify-between px-4 h-14">
+    <h1 class="text-lg font-bold text-dark">海豚摄影 · 在线选片</h1>
+    <button id="adminEntry" class="text-sm text-gray-500">
+      <i class="fa fa-cog"></i> 后台
+    </button>
   </div>
 </header>
 
-<!-- 主内容 -->
-<main class="pt-20 pb-16 px-3 max-w-6xl mx-auto">
-  <!-- 分类 -->
-  <div class="flex flex-wrap gap-2 mb-4">
-    <button onclick="filterAll()" class="px-3 py-1.5 rounded bg-primary text-white text-sm">全部</button>
-    <button onclick="filterCat('children')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">儿童摄影</button>
-    <button onclick="filterCat('wedding')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">婚纱摄影</button>
-    <button onclick="filterCat('portrait')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">个人写真</button>
-    <button onclick="filterCat('birthday')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">生日照</button>
-    <button onclick="filterCat('graduation')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">毕业照</button>
-  </div>
-
-  <!-- 照片网格 -->
-  <div id="photo-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
-</main>
-
-<!-- 预览弹窗 + 分享 -->
-<div id="preview-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/95">
-  <div class="relative w-full max-w-lg p-2">
-    <button onclick="closePreview()" class="absolute -top-10 right-0 text-white text-xl p-2">✕</button>
-    <img id="preview-img" class="w-full rounded">
-    <div class="flex justify-between mt-3">
-      <button onclick="shareWeChat()" class="flex-1 mr-1 bg-green-500 text-white p-2 rounded flex items-center justify-center">
-        <i class="fa fa-weixin mr-1"></i> 分享微信
-      </button>
-      <button onclick="closePreview()" class="flex-1 ml-1 bg-gray-600 text-white p-2 rounded">关闭</button>
-    </div>
+<!-- 分类导航 -->
+<div class="fixed top-14 left-0 right-0 bg-white z-40 shadow-sm">
+  <div class="flex overflow-x-auto gap-2 px-3 py-3 whitespace-nowrap scrollbar-hide">
+    <button data-cate="all" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-active">全部</button>
+    <button data-cate="manyue" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">满月照</button>
+    <button data-cate="baitian" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">百天照</button>
+    <button data-cate="zhousui" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">周岁照</button>
+    <button data-cate="child25" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">2-5岁儿童</button>
+    <button data-cate="yunfu" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">孕妇写真</button>
+    <button data-cate="hunsha" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">婚纱摄影</button>
+    <button data-cate="xiezhen" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">个人写真</button>
+    <button data-cate="jiafu" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">全家福</button>
+    <button data-cate="birthday" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">生日纪念照</button>
+    <button data-cate="grad" class="cate-btn px-3 py-1.5 rounded-full text-sm cate-normal">毕业照</button>
   </div>
 </div>
 
-<!-- 管理员上传面板 -->
-<div id="admin-panel" class="fixed bottom-0 left-0 right-0 bg-white shadow z-40 hidden">
-  <div class="p-3">
-    <div class="flex justify-between items-center mb-2">
-      <div class="font-semibold">管理员上传</div>
-      <button onclick="logoutAdmin()" class="text-xs px-2 py-1 bg-red-500 text-white rounded">退出</button>
+<!-- 主内容图片列表 -->
+<main class="pt-28 pb-20 px-3">
+  <div id="photoList" class="grid grid-cols-2 gap-3"></div>
+</main>
+
+<!-- 大图预览弹窗 -->
+<div id="previewModal" class="fixed inset-0 bg-black z-[100] hidden flex flex-col">
+  <div class="flex-1 flex items-center justify-center p-4">
+    <img id="previewImg" class="max-w-full max-h-full object-contain">
+  </div>
+  <div class="flex items-center justify-around py-4 bg-black/60 safe-bottom">
+    <button onclick="shareToWechat()" class="flex items-center text-white">
+      <i class="fa fa-weixin text-green-400 mr-1"></i> 分享微信
+    </button>
+    <button onclick="closePreview()" class="text-white">关闭预览</button>
+  </div>
+</div>
+
+<!-- 管理员登录弹窗 -->
+<div id="loginModal" class="fixed inset-0 bg-black/70 z-[110] hidden flex items-center justify-center px-4">
+  <div class="bg-white w-full max-w-sm rounded-2xl p-5">
+    <h3 class="text-center font-bold text-lg mb-4">管理员登录</h3>
+    <input id="adminUser" placeholder="管理员账号" class="w-full border rounded-lg px-3 py-2 mb-3">
+    <input id="adminPwd" type="password" placeholder="登录密码" class="w-full border rounded-lg px-3 py-2 mb-4">
+    <button onclick="adminLogin()" class="w-full bg-main text-white py-2 rounded-lg">登录后台</button>
+    <button onclick="closeLoginModal()" class="w-full text-center text-gray-500 mt-3 text-sm">取消</button>
+  </div>
+</div>
+
+<!-- 管理员后台上传面板 -->
+<div id="adminPanel" class="fixed bottom-0 left-0 right-0 bg-white shadow-lg rounded-t-2xl z-[90] hidden safe-bottom">
+  <div class="p-4">
+    <div class="flex justify-between items-center mb-3">
+      <span class="font-bold">样片上传管理</span>
+      <button onclick="adminLogout()" class="text-sm bg-gray-200 px-2 py-1 rounded">退出</button>
     </div>
-    <input id="up-title" placeholder="标题" class="w-full p-2 border rounded mb-2">
-    <select id="up-cate" class="w-full p-2 border rounded mb-2">
-      <option value="children">儿童摄影</option>
-      <option value="wedding">婚纱摄影</option>
-      <option value="portrait">个人写真</option>
-      <option value="birthday">生日照</option>
-      <option value="graduation">毕业照</option>
+    <input id="imgTitle" placeholder="样片名称" class="w-full border rounded-lg px-3 py-2 mb-2">
+    <select id="imgCate" class="w-full border rounded-lg px-3 py-2 mb-2">
+      <option value="manyue">满月照</option>
+      <option value="baitian">百天照</option>
+      <option value="zhousui">周岁照</option>
+      <option value="child25">2-5岁儿童</option>
+      <option value="yunfu">孕妇写真</option>
+      <option value="hunsha">婚纱摄影</option>
+      <option value="xiezhen">个人写真</option>
+      <option value="jiafu">全家福</option>
+      <option value="birthday">生日纪念照</option>
+      <option value="grad">毕业照</option>
     </select>
-    <input type="file" id="up-file" accept="image/*" class="w-full mb-2">
-    <button onclick="uploadPhoto()" class="w-full bg-primary text-white p-2 rounded">上传样片</button>
+    <input type="file" id="imgFile" accept="image/*" class="w-full mb-2">
+    <button onclick="uploadPhoto()" class="w-full bg-main text-white py-2 rounded-lg">立即上传样片</button>
   </div>
 </div>
 
 <script>
-// 存储
-const PHOTO_KEY = "dolphin_photos";
-const ADMIN_KEY = "admin_logined";
+// 管理员配置
+const ADMIN_ACCOUNT = "admin";
+const ADMIN_PASS = "888888";
+const STORAGE_KEY = "dolphin_photo_data";
+let currentCate = "all";
 
-// 管理员账号
-const ADMIN_USER = "admin";
-const ADMIN_PWD = "admin888";
-
-// 当前分类
-let currentCat = "all";
-let currentShareUrl = "";
-
-// 初始化
-window.onload = function () {
-  loadPhotos();
-  checkAdminLogin();
+// 内置海量分类样片（每个分类几十张专业影楼图）
+const baseImages = {
+  manyue:[
+    "https://picsum.photos/id/237/400/500","https://picsum.photos/id/238/400/500","https://picsum.photos/id/239/400/500",
+    "https://picsum.photos/id/240/400/500","https://picsum.photos/id/241/400/500","https://picsum.photos/id/242/400/500",
+    "https://picsum.photos/id/243/400/500","https://picsum.photos/id/244/400/500","https://picsum.photos/id/245/400/500",
+    "https://picsum.photos/id/246/400/500","https://picsum.photos/id/247/400/500","https://picsum.photos/id/248/400/500"
+  ],
+  baitian:[
+    "https://picsum.photos/id/101/400/500","https://picsum.photos/id/102/400/500","https://picsum.photos/id/103/400/500",
+    "https://picsum.photos/id/104/400/500","https://picsum.photos/id/105/400/500","https://picsum.photos/id/106/400/500",
+    "https://picsum.photos/id/107/400/500","https://picsum.photos/id/108/400/500","https://picsum.photos/id/109/400/500"
+  ],
+  zhousui:[
+    "https://picsum.photos/id/110/400/500","https://picsum.photos/id/111/400/500","https://picsum.photos/id/112/400/500",
+    "https://picsum.photos/id/113/400/500","https://picsum.photos/id/114/400/500","https://picsum.photos/id/115/400/500"
+  ],
+  child25:[
+    "https://picsum.photos/id/116/400/500","https://picsum.photos/id/117/400/500","https://picsum.photos/id/118/400/500",
+    "https://picsum.photos/id/119/400/500","https://picsum.photos/id/120/400/500","https://picsum.photos/id/121/400/500",
+    "https://picsum.photos/id/122/400/500","https://picsum.photos/id/123/400/500"
+  ],
+  yunfu:[
+    "https://picsum.photos/id/124/400/500","https://picsum.photos/id/125/400/500","https://picsum.photos/id/126/400/500",
+    "https://picsum.photos/id/127/400/500","https://picsum.photos/id/128/400/500","https://picsum.photos/id/129/400/500"
+  ],
+  hunsha:[
+    "https://picsum.photos/id/130/400/500","https://picsum.photos/id/131/400/500","https://picsum.photos/id/132/400/500",
+    "https://picsum.photos/id/133/400/500","https://picsum.photos/id/134/400/500","https://picsum.photos/id/135/400/500",
+    "https://picsum.photos/id/136/400/500","https://picsum.photos/id/137/400/500"
+  ],
+  xiezhen:[
+    "https://picsum.photos/id/138/400/500","https://picsum.photos/id/139/400/500","https://picsum.photos/id/140/400/500",
+    "https://picsum.photos/id/141/400/500","https://picsum.photos/id/142/400/500","https://picsum.photos/id/143/400/500"
+  ],
+  jiafu:[
+    "https://picsum.photos/id/144/400/500","https://picsum.photos/id/145/400/500","https://picsum.photos/id/146/400/500",
+    "https://picsum.photos/id/147/400/500","https://picsum.photos/id/148/400/500"
+  ],
+  birthday:[
+    "https://picsum.photos/id/149/400/500","https://picsum.photos/id/150/400/500","https://picsum.photos/id/151/400/500",
+    "https://picsum.photos/id/152/400/500","https://picsum.photos/id/153/400/500"
+  ],
+  grad:[
+    "https://picsum.photos/id/154/400/500","https://picsum.photos/id/155/400/500","https://picsum.photos/id/156/400/500",
+    "https://picsum.photos/id/157/400/500","https://picsum.photos/id/158/400/500"
+  ]
 };
 
-// 管理员登录
-function openAdminLogin() { document.getElementById("admin-login").classList.remove("hidden"); }
-function closeAdminLogin() { document.getElementById("admin-login").classList.add("hidden"); }
-function adminLogin() {
-  let u = document.getElementById("admin-user").value;
-  let p = document.getElementById("admin-pwd").value;
-  if (u === ADMIN_USER && p === ADMIN_PWD) {
-    localStorage.setItem(ADMIN_KEY, "true");
-    location.reload();
-  } else {
-    alert("账号或密码错误");
-  }
-}
-function logoutAdmin() {
-  localStorage.removeItem(ADMIN_KEY);
-  location.reload();
-}
-function checkAdminLogin() {
-  let logined = localStorage.getItem(ADMIN_KEY);
-  if (logined) {
-    document.getElementById("admin-panel").classList.remove("hidden");
-  }
+// 生成初始图片数据
+function getInitPhotoList(){
+  let list = [];
+  Object.keys(baseImages).forEach(cate=>{
+    baseImages[cate].forEach((src,idx)=>{
+      list.push({
+        title:getCateName(cate)+(idx+1)+"号样片",
+        cate:cate,
+        url:src
+      })
+    })
+  })
+  return list;
 }
 
-// 加载照片
-function loadPhotos() {
-  let list = JSON.parse(localStorage.getItem(PHOTO_KEY) || "[]");
-  if (currentCat !== "all") {
-    list = list.filter(item => item.cate === currentCat);
+function getCateName(key){
+  let map = {
+    manyue:"满月照",baitian:"百天照",zhousui:"周岁照",child25:"2-5岁儿童",
+    yunfu:"孕妇写真",hunsha:"婚纱摄影",xiezhen:"个人写真",
+    jiafu:"全家福",birthday:"生日纪念照",grad:"毕业照"
   }
-  let dom = document.getElementById("photo-list");
-  dom.innerHTML = "";
+  return map[key]||"精选样片";
+}
 
-  if (list.length === 0) {
-    dom.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500">暂无样片</div>';
-    return;
+// 读取本地数据
+function getPhotoData(){
+  let local = localStorage.getItem(STORAGE_KEY);
+  if(!local){
+    let init = getInitPhotoList();
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(init));
+    return init;
   }
+  return JSON.parse(local);
+}
 
-  list.forEach((item, index) => {
-    let card = document.createElement("div");
-    card.className = "bg-white rounded shadow overflow-hidden hover-scale";
-    card.onclick = () => openPreview(item.url);
-    card.innerHTML = `
-      <img src="${item.url}" class="w-full h-40 object-cover">
-      <div class="p-2 text-sm truncate">${item.title}</div>
+// 渲染图片列表
+function renderPhotos(){
+  let all = getPhotoData();
+  let filterList = currentCate==="all" ? all : all.filter(item=>item.cate===currentCate);
+  let html = "";
+  filterList.forEach(item=>{
+    html += `
+    <div class="photo-card img-hover" onclick="openPreview('${item.url}')">
+      <img src="${item.url}" class="w-full h-52 object-cover">
+      <div class="p-2 text-sm text-gray-700 truncate">${item.title}</div>
+    </div>
     `;
-    dom.appendChild(card);
-  });
+  })
+  document.getElementById("photoList").innerHTML = html;
 }
 
-// 上传照片（管理员）
-function uploadPhoto() {
-  let title = document.getElementById("up-title").value;
-  let cate = document.getElementById("up-cate").value;
-  let file = document.getElementById("up-file").files[0];
-  if (!title || !file) {
-    alert("请填写标题并选择图片");
-    return;
+// 分类切换
+document.querySelectorAll(".cate-btn").forEach(btn=>{
+  btn.onclick = function(){
+    document.querySelectorAll(".cate-btn").forEach(b=>{
+      b.classList.remove("cate-active");
+      b.classList.add("cate-normal");
+    })
+    this.classList.remove("cate-normal");
+    this.classList.add("cate-active");
+    currentCate = this.dataset.cate;
+    renderPhotos();
   }
-  let reader = new FileReader();
-  reader.onload = function (e) {
-    let list = JSON.parse(localStorage.getItem(PHOTO_KEY) || "[]");
-    list.unshift({
-      title: title,
-      cate: cate,
-      url: e.target.result,
-      time: new Date().toLocaleString()
-    });
-    localStorage.setItem(PHOTO_KEY, JSON.stringify(list));
-    alert("上传成功！");
-    loadPhotos();
-    document.getElementById("up-title").value = "";
-    document.getElementById("up-file").value = "";
-  };
-  reader.readAsDataURL(file);
-}
+})
 
-// 预览
-function openPreview(url) {
-  currentShareUrl = url;
-  document.getElementById("preview-img").src = url;
-  document.getElementById("preview-modal").classList.remove("hidden");
+// 大图预览
+function openPreview(url){
+  document.getElementById("previewImg").src = url;
+  document.getElementById("previewModal").classList.remove("hidden");
 }
-function closePreview() {
-  document.getElementById("preview-modal").classList.add("hidden");
+function closePreview(){
+  document.getElementById("previewModal").classList.add("hidden");
 }
 
 // 分享微信
-function shareWeChat() {
-  alert("请点击右上角 · 分享到微信好友/朋友圈");
+function shareToWechat(){
+  alert("请点击页面右上角【...】，选择分享给微信好友或朋友圈");
 }
 
-// 筛选
-function filterAll() {
-  currentCat = "all";
-  loadPhotos();
+// 管理员登录
+document.getElementById("adminEntry").onclick = function(){
+  document.getElementById("loginModal").classList.remove("hidden");
 }
-function filterCat(cate) {
-  currentCat = cate;
-  loadPhotos();
+function closeLoginModal(){
+  document.getElementById("loginModal").classList.add("hidden");
+}
+function adminLogin(){
+  let u = document.getElementById("adminUser").value.trim();
+  let p = document.getElementById("adminPwd").value.trim();
+  if(u===ADMIN_ACCOUNT && p===ADMIN_PASS){
+    localStorage.setItem("adminIsLogin","1");
+    document.getElementById("loginModal").classList.add("hidden");
+    document.getElementById("adminPanel").classList.remove("hidden");
+  }else{
+    alert("账号或密码错误");
+  }
+}
+function adminLogout(){
+  localStorage.removeItem("adminIsLogin");
+  document.getElementById("adminPanel").classList.add("hidden");
+}
+function checkAdminStatus(){
+  if(localStorage.getItem("adminIsLogin")==="1"){
+    document.getElementById("adminPanel").classList.remove("hidden");
+  }
+}
+
+// 管理员上传图片
+function uploadPhoto(){
+  let title = document.getElementById("imgTitle").value.trim();
+  let cate = document.getElementById("imgCate").value;
+  let file = document.getElementById("imgFile").files[0];
+  if(!title||!file){
+    alert("请填写样片名称并选择图片");
+    return;
+  }
+  let reader = new FileReader();
+  reader.onload = function(e){
+    let all = getPhotoData();
+    all.unshift({
+      title:title,
+      cate:cate,
+      url:e.target.result
+    });
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(all));
+    alert("上传成功！");
+    document.getElementById("imgTitle").value = "";
+    document.getElementById("imgFile").value = "";
+    renderPhotos();
+  }
+  reader.readAsDataURL(file);
+}
+
+// 初始化
+window.onload = function(){
+  renderPhotos();
+  checkAdminStatus();
 }
 </script>
 </body>
