@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>海豚摄影 - 专业在线选片系统</title>
+  <title>海豚摄影 - 专业在线选片预约系统</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
   <script>
@@ -13,6 +13,7 @@
           colors: {
             main: '#e54b4b',
             dark: '#1a1a1a',
+            adminBg: '#f0f2f5',
           }
         }
       }
@@ -26,8 +27,11 @@
       .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
       .img-hover { transition: transform 0.25s ease; }
       .img-hover:active { transform: scale(0.97); }
+      .admin-menu-active { @apply bg-main text-white; }
+      .admin-menu-normal { @apply bg-white text-gray-700 border border-gray-200; }
     }
     body { background:#f5f5f5; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
   </style>
 </head>
 <body class="bg-gray-100">
@@ -36,9 +40,14 @@
 <header class="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
   <div class="flex items-center justify-between px-4 h-14">
     <h1 class="text-lg font-bold text-dark">海豚摄影 · 在线选片</h1>
-    <button id="adminEntry" class="text-sm text-gray-500">
-      <i class="fa fa-cog"></i> 后台
-    </button>
+    <div class="flex gap-3 items-center">
+      <button id="bookEntry" class="text-sm text-gray-500">
+        <i class="fa fa-calendar"></i> 在线预约
+      </button>
+      <button id="adminEntry" class="text-sm text-gray-500">
+        <i class="fa fa-cog"></i> 后台
+      </button>
+    </div>
   </div>
 </header>
 
@@ -64,6 +73,31 @@
   <div id="photoList" class="grid grid-cols-2 gap-3"></div>
 </main>
 
+<!-- 客户在线预约弹窗 -->
+<div id="bookModal" class="fixed inset-0 bg-black/70 z-[100] hidden flex items-center justify-center px-4">
+  <div class="bg-white w-full max-w-md rounded-2xl p-5 max-h-[85vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">在线预约拍摄</h3>
+      <button onclick="closeBookModal()" class="text-gray-500 text-xl">✕</button>
+    </div>
+    <input id="bookName" placeholder="您的姓名" class="w-full border rounded-lg px-3 py-2 mb-3">
+    <input id="bookPhone" placeholder="联系电话" class="w-full border rounded-lg px-3 py-2 mb-3">
+    <select id="bookPackage" class="w-full border rounded-lg px-3 py-2 mb-3">
+      <option value="">请选择拍摄套餐</option>
+      <option value="新生儿满月套餐">新生儿满月套餐</option>
+      <option value="百天精品套餐">百天精品套餐</option>
+      <option value="周岁成长套餐">周岁成长套餐</option>
+      <option value="儿童写真套餐">儿童写真套餐</option>
+      <option value="孕妇专属套餐">孕妇专属套餐</option>
+      <option value="婚纱摄影套餐">婚纱摄影套餐</option>
+      <option value="全家福套餐">全家福套餐</option>
+    </select>
+    <input type="date" id="bookDate" class="w-full border rounded-lg px-3 py-2 mb-3">
+    <textarea id="bookRemark" placeholder="备注信息（宝宝年龄、风格要求等）" rows="3" class="w-full border rounded-lg px-3 py-2 mb-4"></textarea>
+    <button onclick="submitBook()" class="w-full bg-main text-white py-2 rounded-lg font-medium">提交预约</button>
+  </div>
+</div>
+
 <!-- 大图预览弹窗 -->
 <div id="previewModal" class="fixed inset-0 bg-black z-[100] hidden flex flex-col">
   <div class="flex-1 flex items-center justify-center p-4">
@@ -88,39 +122,59 @@
   </div>
 </div>
 
-<!-- 管理员后台上传面板 -->
-<div id="adminPanel" class="fixed bottom-0 left-0 right-0 bg-white shadow-lg rounded-t-2xl z-[90] hidden safe-bottom">
-  <div class="p-4">
-    <div class="flex justify-between items-center mb-3">
-      <span class="font-bold">样片上传管理</span>
-      <button onclick="adminLogout()" class="text-sm bg-gray-200 px-2 py-1 rounded">退出</button>
+<!-- 管理员后台主页面 -->
+<div id="adminPage" class="fixed inset-0 z-[120] hidden bg-adminBg overflow-y-auto">
+  <div class="bg-white px-4 py-3 flex justify-between items-center shadow-sm">
+    <h2 class="font-bold text-lg">管理员管理中心</h2>
+    <button onclick="adminLogout()" class="text-sm bg-gray-200 px-3 py-1 rounded">退出登录</button>
+  </div>
+
+  <!-- 后台菜单 -->
+  <div class="flex gap-2 px-3 py-4">
+    <button data-admin-menu="upload" class="admin-menu-btn px-4 py-2 rounded-lg admin-menu-active">样片上传</button>
+    <button data-admin-menu="booking" class="admin-menu-btn px-4 py-2 rounded-lg admin-menu-normal">预约管理</button>
+  </div>
+
+  <!-- 样片上传模块 -->
+  <div id="admin-upload" class="px-3">
+    <div class="bg-white rounded-xl p-4 shadow-sm">
+      <h3 class="font-bold mb-3 text-gray-800">样片上传管理</h3>
+      <input id="imgTitle" placeholder="样片名称" class="w-full border rounded-lg px-3 py-2 mb-2">
+      <select id="imgCate" class="w-full border rounded-lg px-3 py-2 mb-2">
+        <option value="manyue">满月照</option>
+        <option value="baitian">百天照</option>
+        <option value="zhousui">周岁照</option>
+        <option value="child25">2-5岁儿童</option>
+        <option value="yunfu">孕妇写真</option>
+        <option value="hunsha">婚纱摄影</option>
+        <option value="xiezhen">个人写真</option>
+        <option value="jiafu">全家福</option>
+        <option value="birthday">生日纪念照</option>
+        <option value="grad">毕业照</option>
+      </select>
+      <input type="file" id="imgFile" accept="image/*" class="w-full mb-2">
+      <button onclick="uploadPhoto()" class="w-full bg-main text-white py-2 rounded-lg">立即上传样片</button>
     </div>
-    <input id="imgTitle" placeholder="样片名称" class="w-full border rounded-lg px-3 py-2 mb-2">
-    <select id="imgCate" class="w-full border rounded-lg px-3 py-2 mb-2">
-      <option value="manyue">满月照</option>
-      <option value="baitian">百天照</option>
-      <option value="zhousui">周岁照</option>
-      <option value="child25">2-5岁儿童</option>
-      <option value="yunfu">孕妇写真</option>
-      <option value="hunsha">婚纱摄影</option>
-      <option value="xiezhen">个人写真</option>
-      <option value="jiafu">全家福</option>
-      <option value="birthday">生日纪念照</option>
-      <option value="grad">毕业照</option>
-    </select>
-    <input type="file" id="imgFile" accept="image/*" class="w-full mb-2">
-    <button onclick="uploadPhoto()" class="w-full bg-main text-white py-2 rounded-lg">立即上传样片</button>
+  </div>
+
+  <!-- 预约管理模块 -->
+  <div id="admin-booking" class="px-3 hidden">
+    <div class="bg-white rounded-xl p-4 shadow-sm">
+      <h3 class="font-bold mb-3 text-gray-800">客户预约信息列表</h3>
+      <div id="bookList" class="space-y-4"></div>
+    </div>
   </div>
 </div>
 
 <script>
-// 管理员配置
+// 管理员账号密码
 const ADMIN_ACCOUNT = "admin";
 const ADMIN_PASS = "888888";
 const STORAGE_KEY = "dolphin_photo_data";
+const BOOK_KEY = "dolphin_booking_data";
 let currentCate = "all";
 
-// 内置海量分类样片（每个分类几十张专业影楼图）
+// 内置分类样片图库
 const baseImages = {
   manyue:[
     "https://picsum.photos/id/237/400/500","https://picsum.photos/id/238/400/500","https://picsum.photos/id/239/400/500",
@@ -169,7 +223,17 @@ const baseImages = {
   ]
 };
 
-// 生成初始图片数据
+// 分类名称映射
+function getCateName(key){
+  let map = {
+    manyue:"满月照",baitian:"百天照",zhousui:"周岁照",child25:"2-5岁儿童",
+    yunfu:"孕妇写真",hunsha:"婚纱摄影",xiezhen:"个人写真",
+    jiafu:"全家福",birthday:"生日纪念照",grad:"毕业照"
+  }
+  return map[key]||"精选样片";
+}
+
+// 初始化样片数据
 function getInitPhotoList(){
   let list = [];
   Object.keys(baseImages).forEach(cate=>{
@@ -184,16 +248,7 @@ function getInitPhotoList(){
   return list;
 }
 
-function getCateName(key){
-  let map = {
-    manyue:"满月照",baitian:"百天照",zhousui:"周岁照",child25:"2-5岁儿童",
-    yunfu:"孕妇写真",hunsha:"婚纱摄影",xiezhen:"个人写真",
-    jiafu:"全家福",birthday:"生日纪念照",grad:"毕业照"
-  }
-  return map[key]||"精选样片";
-}
-
-// 读取本地数据
+// 样片本地存储
 function getPhotoData(){
   let local = localStorage.getItem(STORAGE_KEY);
   if(!local){
@@ -204,7 +259,7 @@ function getPhotoData(){
   return JSON.parse(local);
 }
 
-// 渲染图片列表
+// 渲染样片
 function renderPhotos(){
   let all = getPhotoData();
   let filterList = currentCate==="all" ? all : all.filter(item=>item.cate===currentCate);
@@ -248,6 +303,90 @@ function shareToWechat(){
   alert("请点击页面右上角【...】，选择分享给微信好友或朋友圈");
 }
 
+// 客户预约弹窗
+document.getElementById("bookEntry").onclick = function(){
+  document.getElementById("bookModal").classList.remove("hidden");
+}
+function closeBookModal(){
+  document.getElementById("bookModal").classList.add("hidden");
+}
+
+// 提交预约
+function submitBook(){
+  let name = document.getElementById("bookName").value.trim();
+  let phone = document.getElementById("bookPhone").value.trim();
+  let pkg = document.getElementById("bookPackage").value;
+  let date = document.getElementById("bookDate").value;
+  let remark = document.getElementById("bookRemark").value.trim();
+  if(!name||!phone){
+    alert("请填写姓名和联系电话");
+    return;
+  }
+  let bookList = JSON.parse(localStorage.getItem(BOOK_KEY)||"[]");
+  bookList.push({
+    name,phone,pkg,date,remark,
+    time:new Date().toLocaleString()
+  });
+  localStorage.setItem(BOOK_KEY,JSON.stringify(bookList));
+  alert("预约提交成功！我们会尽快与您联系");
+  closeBookModal();
+  // 清空表单
+  document.getElementById("bookName").value = "";
+  document.getElementById("bookPhone").value = "";
+  document.getElementById("bookPackage").value = "";
+  document.getElementById("bookDate").value = "";
+  document.getElementById("bookRemark").value = "";
+}
+
+// 渲染预约列表（后台）
+function renderBookList(){
+  let list = JSON.parse(localStorage.getItem(BOOK_KEY)||"[]");
+  let dom = document.getElementById("bookList");
+  if(list.length===0){
+    dom.innerHTML = '<div class="text-center text-gray-500 py-6">暂无客户预约信息</div>';
+    return;
+  }
+  let html = "";
+  list.forEach(item=>{
+    html += `
+    <div class="border border-gray-200 rounded-lg p-3">
+      <div class="grid grid-cols-2 gap-2 text-sm mb-1">
+        <div><span class="text-gray-500">客户姓名：</span>${item.name}</div>
+        <div><span class="text-gray-500">联系电话：</span>${item.phone}</div>
+      </div>
+      <div class="text-sm mb-1"><span class="text-gray-500">选择套餐：</span>${item.pkg||"未选择"}</div>
+      <div class="text-sm mb-1"><span class="text-gray-500">预约日期：</span>${item.date||"未填写"}</div>
+      <div class="text-sm mb-1"><span class="text-gray-500">备注信息：</span>${item.remark||"无"}</div>
+      <div class="text-xs text-gray-400">提交时间：${item.time}</div>
+      <button onclick="callPhone('${item.phone}')" class="mt-2 bg-main text-white text-xs px-3 py-1 rounded">一键联系客户</button>
+    </div>
+    `;
+  })
+  dom.innerHTML = html;
+}
+function callPhone(phone){
+  alert("客户联系电话："+phone+"\n可直接复制拨打或微信添加");
+}
+
+// 管理员菜单切换
+document.querySelectorAll(".admin-menu-btn").forEach(btn=>{
+  btn.onclick = function(){
+    document.querySelectorAll(".admin-menu-btn").forEach(b=>{
+      b.classList.remove("admin-menu-active");
+      b.classList.add("admin-menu-normal");
+    });
+    this.classList.remove("admin-menu-normal");
+    this.classList.add("admin-menu-active");
+    let menu = this.dataset.adminMenu;
+    document.getElementById("admin-upload").classList.add("hidden");
+    document.getElementById("admin-booking").classList.add("hidden");
+    document.getElementById("admin-"+menu).classList.remove("hidden");
+    if(menu==="booking"){
+      renderBookList();
+    }
+  }
+})
+
 // 管理员登录
 document.getElementById("adminEntry").onclick = function(){
   document.getElementById("loginModal").classList.remove("hidden");
@@ -261,22 +400,22 @@ function adminLogin(){
   if(u===ADMIN_ACCOUNT && p===ADMIN_PASS){
     localStorage.setItem("adminIsLogin","1");
     document.getElementById("loginModal").classList.add("hidden");
-    document.getElementById("adminPanel").classList.remove("hidden");
+    document.getElementById("adminPage").classList.remove("hidden");
   }else{
     alert("账号或密码错误");
   }
 }
 function adminLogout(){
   localStorage.removeItem("adminIsLogin");
-  document.getElementById("adminPanel").classList.add("hidden");
+  document.getElementById("adminPage").classList.add("hidden");
 }
 function checkAdminStatus(){
   if(localStorage.getItem("adminIsLogin")==="1"){
-    document.getElementById("adminPanel").classList.remove("hidden");
+    document.getElementById("adminPage").classList.remove("hidden");
   }
 }
 
-// 管理员上传图片
+// 管理员上传样片
 function uploadPhoto(){
   let title = document.getElementById("imgTitle").value.trim();
   let cate = document.getElementById("imgCate").value;
